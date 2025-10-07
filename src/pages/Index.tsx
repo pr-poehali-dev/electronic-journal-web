@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
+import TeacherDashboard from '@/components/TeacherDashboard';
 
 const AUTH_URL = 'https://functions.poehali.dev/4626bb13-e2e7-47da-8489-eaf34a169841';
 const JOURNAL_URL = 'https://functions.poehali.dev/7ead2d05-255b-4d1c-a687-6fdbfd49366c';
@@ -297,6 +298,10 @@ const Index = () => {
         </Card>
       </div>
     );
+  }
+
+  if (user.role === 'teacher') {
+    return <TeacherDashboard user={user} onLogout={logout} />;
   }
 
   return (

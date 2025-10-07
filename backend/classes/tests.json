@@ -1,0 +1,29 @@
+{
+  "tests": [
+    {
+      "name": "Get classes for teacher",
+      "method": "GET",
+      "path": "/?teacher_id=2",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "classes": "array"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Create new class",
+      "method": "POST",
+      "path": "/?teacher_id=2",
+      "body": {
+        "action": "create_class",
+        "name": "10А"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "number",
+        "name": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

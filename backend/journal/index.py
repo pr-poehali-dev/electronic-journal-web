@@ -28,13 +28,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     params = event.get('queryStringParameters', {}) or {}
     user_id = params.get('user_id')
     data_type = params.get('type')
-    
-    if not user_id:
-        return {
-            'statusCode': 400,
-            'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
-            'body': json.dumps({'error': 'user_id required'})
-        }
+    class_id = params.get('class_id')
+    teacher_id = params.get('teacher_id')
     
     conn = psycopg2.connect(os.environ['DATABASE_URL'])
     cur = conn.cursor()
@@ -59,38 +54,90 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             ]
         
         elif data_type == 'homework':
-            cur.execute(
-                "SELECT id, subject, description, due_date, completed FROM homework WHERE user_id = %s ORDER BY due_date",
-                (user_id,)
-            )
-            rows = cur.fetchall()
-            data = [
-                {
-                    'id': r[0],
-                    'subject': r[1],
-                    'description': r[2],
-                    'due_date': r[3].isoformat() if r[3] else None,
-                    'completed': r[4]
+            if class_id:
+                cur.execute(
+                    "SELECT id, subject, description, due_date, completed, user_id FROM homework WHERE class_id = %s ORDER BY due_date",
+                    (class_id,)
+                )
+                rows = cur.fetchall()
+                data = [
+                    {
+                        'id': r[0],
+                        'subject': r[1],
+                        'description': r[2],
+                        'due_date': r[3].isoformat() if r[3] else None,
+                        'completed': r[4],
+                        'user_id': r[5]
+                    }
+                    for r in rows
+                ]
+            elif user_id:
+                cur.execute(
+                    "SELECT id, subject, description, due_date, completed FROM homework WHERE user_id = %s ORDER BY due_date",
+                    (user_id,)
+                )
+                rows = cur.fetchall()
+                data = [
+                    {
+                        'id': r[0],
+                        'subject': r[1],
+                        'description': r[2],
+                        'due_date': r[3].isoformat() if r[3] else None,
+                        'completed': r[4]
+                    }
+                    for r in rows
+                ]
+            else:
+                cur.close()
+                conn.close()
+                return {
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'user_id or class_id required'})
                 }
-                for r in rows
-            ]
         
         elif data_type == 'grades':
-            cur.execute(
-                "SELECT id, subject, grade, grade_date, description FROM grades WHERE user_id = %s ORDER BY grade_date DESC",
-                (user_id,)
-            )
-            rows = cur.fetchall()
-            data = [
-                {
-                    'id': r[0],
-                    'subject': r[1],
-                    'grade': r[2],
-                    'grade_date': r[3].isoformat() if r[3] else None,
-                    'description': r[4]
+            if class_id:
+                cur.execute(
+                    "SELECT id, subject, grade, grade_date, description, user_id FROM grades WHERE class_id = %s ORDER BY grade_date DESC",
+                    (class_id,)
+                )
+                rows = cur.fetchall()
+                data = [
+                    {
+                        'id': r[0],
+                        'subject': r[1],
+                        'grade': r[2],
+                        'grade_date': r[3].isoformat() if r[3] else None,
+                        'description': r[4],
+                        'user_id': r[5]
+                    }
+                    for r in rows
+                ]
+            elif user_id:
+                cur.execute(
+                    "SELECT id, subject, grade, grade_date, description FROM grades WHERE user_id = %s ORDER BY grade_date DESC",
+                    (user_id,)
+                )
+                rows = cur.fetchall()
+                data = [
+                    {
+                        'id': r[0],
+                        'subject': r[1],
+                        'grade': r[2],
+                        'grade_date': r[3].isoformat() if r[3] else None,
+                        'description': r[4]
+                    }
+                    for r in rows
+                ]
+            else:
+                cur.close()
+                conn.close()
+                return {
+                    'statusCode': 400,
+                    'headers': {'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*'},
+                    'body': json.dumps({'error': 'user_id or class_id required'})
                 }
-                for r in rows
-            ]
         
         else:
             cur.close()
@@ -119,15 +166,23 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             )
         
         elif data_type == 'homework':
+            target_user_id = body_data.get('user_id', user_id)
+            target_class_id = body_data.get('class_id')
+            target_teacher_id = body_data.get('teacher_id')
+            
             cur.execute(
-                "INSERT INTO homework (user_id, subject, description, due_date) VALUES (%s, %s, %s, %s) RETURNING id",
-                (user_id, body_data['subject'], body_data['description'], body_data['due_date'])
+                "INSERT INTO homework (user_id, subject, description, due_date, class_id, teacher_id) VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+                (target_user_id, body_data['subject'], body_data['description'], body_data['due_date'], target_class_id, target_teacher_id)
             )
         
         elif data_type == 'grades':
+            target_user_id = body_data.get('user_id', user_id)
+            target_class_id = body_data.get('class_id')
+            target_teacher_id = body_data.get('teacher_id')
+            
             cur.execute(
-                "INSERT INTO grades (user_id, subject, grade, grade_date, description) VALUES (%s, %s, %s, %s, %s) RETURNING id",
-                (user_id, body_data['subject'], body_data['grade'], body_data['grade_date'], body_data.get('description'))
+                "INSERT INTO grades (user_id, subject, grade, grade_date, description, class_id, teacher_id) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id",
+                (target_user_id, body_data['subject'], body_data['grade'], body_data['grade_date'], body_data.get('description'), target_class_id, target_teacher_id)
             )
         
         else:
